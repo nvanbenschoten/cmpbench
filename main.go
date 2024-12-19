@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -213,6 +214,8 @@ func run(ctx context.Context) error {
 	newSuite := makeBenchSuite(newRef, newSubject, useBazel)
 	defer oldSuite.close()
 	defer newSuite.close()
+
+	printHeader(os.Stdout, oldSuite, newSuite)
 
 	if previousRun == "" {
 		if err := buildBenches(ctx, pkgFilter, postChck, &oldSuite, &newSuite); err != nil {
@@ -627,4 +630,17 @@ func (fs fileSet) sorted() []string {
 	}
 	sort.Strings(s)
 	return s
+}
+
+func printHeader(w io.Writer, oldSuite, newSuite benchSuite) {
+	fmt.Fprintf(w, "old:  %s %.50s\n", oldSuite.ref, oldSuite.subject)
+	fmt.Fprintf(w, "new:  %s %.50s\n", newSuite.ref, newSuite.subject)
+	fmt.Fprintf(w, "args: %s\n\n", strings.Join(func() []string {
+		quoted := make([]string, 1+len(os.Args[1:]))
+		quoted[0] = "benchdiff"
+		for i, arg := range os.Args[1:] {
+			quoted[1+i] = strconv.Quote(arg)
+		}
+		return quoted
+	}(), " "))
 }
