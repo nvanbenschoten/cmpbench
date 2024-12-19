@@ -567,7 +567,6 @@ func (bs *benchSuite) build(pkgFilter []string, postChck string, t time.Time) (e
 		}
 	}()
 
-	fmt.Fprintf(os.Stderr, "checking out '%s'\n", bs.ref)
 	if err := checkoutRef(bs.ref, postChck); err != nil {
 		return err
 	}
