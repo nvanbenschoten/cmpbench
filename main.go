@@ -334,9 +334,8 @@ func runCmpBenches(
 	cpuProfile, memProfile, mutexProfile bool,
 	itersPerTest int,
 ) error {
-	fmt.Fprintf(os.Stderr, "\nrunning benchmarks:")
 	var spinner ui.Spinner
-	spinner.Start(os.Stderr, "")
+	spinner.Start(os.Stderr, "running benchmarks:")
 	defer spinner.Stop()
 	for i, t := range tests {
 		pkg := testBinToPkg(t)
@@ -356,7 +355,6 @@ func runCmpBenches(
 				return err
 			}
 		}
-		fmt.Fprintln(os.Stderr)
 	}
 	return nil
 }
@@ -541,7 +539,6 @@ func (bs *benchSuite) build(pkgFilter []string, postChck string, t time.Time) (e
 	// Create the binary directory: ./benchdiff/<ref>/bin/<hash(pkgFilter)>
 	bs.binDir = testBinDir(bs.ref, pkgFilter)
 	if _, err = os.Stat(bs.binDir); err == nil {
-		fmt.Fprintf(os.Stderr, "test binaries already exist for %s: %.50s\n", bs.ref, bs.subject)
 		files, err := ioutil.ReadDir(bs.binDir)
 		if err != nil {
 			return err
