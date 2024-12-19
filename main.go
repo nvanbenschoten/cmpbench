@@ -589,8 +589,8 @@ func (bs *benchSuite) build(pkgFilter []string, postChck string, t time.Time) (e
 		} else if ok {
 			bs.testFiles[testBin] = struct{}{}
 		}
+		spinner.Update(ui.Fraction(i+1, len(pkgs)))
 	}
-	spinner.Update(ui.Fraction(len(pkgs), len(pkgs)))
 	return nil
 }
 
