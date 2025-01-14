@@ -58,6 +58,7 @@ Options:
   -p, --previous-run <time> time of previous run; skip running benches and just (re)process previous run
       --post-checkout       an optional command to run after checking out each branch to
                             configure the git repo so that 'go build' succeeds
+      --preview             show benchdiff text output while benchmarks are being run (default true)
   -b  --bazel               build the test binaries with bazel
   -s  --sort      <order>   sort output by 'delta' (largest first) or 'name'
       --csv                 output the results in a csv format
@@ -137,6 +138,7 @@ func run(ctx context.Context) error {
 	var cpuProfile, memProfile, mutexProfile bool
 	var threshold float64
 	var useBazel bool
+	var preview bool
 
 	pflag.Usage = func() { fmt.Fprintln(os.Stderr, usage) }
 	pflag.BoolVarP(&help, "help", "h", false, "")
@@ -156,6 +158,7 @@ func run(ctx context.Context) error {
 	pflag.BoolVarP(&mutexProfile, "mutexprofile", "", false, "")
 	pflag.Float64VarP(&threshold, "threshold", "t", -1, "")
 	pflag.StringVarP(&previousRun, "previous-run", "p", "", "")
+	pflag.BoolVarP(&preview, "preview", "", true, "")
 	pflag.Parse()
 	prArgs := pflag.Args()
 
@@ -226,7 +229,7 @@ func run(ctx context.Context) error {
 		tests := oldSuite.intersectTests(&newSuite)
 		err = runCmpBenches(
 			ctx, &oldSuite, &newSuite, tests.sorted(), runPattern,
-			benchTime, cpuProfile, memProfile, mutexProfile, itersPerTest,
+			benchTime, cpuProfile, memProfile, mutexProfile, itersPerTest, preview,
 		)
 		if err != nil {
 			return err
@@ -253,7 +256,7 @@ func run(ctx context.Context) error {
 		fmt.Fprintf(os.Stderr, "Found previous run; old=%s, new=%s\n", oldSuite.outFile.Name(), newSuite.outFile.Name())
 	}
 	// Process the benchmark output.
-	res, err := processBenchOutput(ctx, &oldSuite, &newSuite, order == "name", out, pkgFilter, srv)
+	res, err := processBenchOutput(ctx, os.Stdout, &oldSuite, &newSuite, order == "name", out, pkgFilter, srv)
 	if err != nil {
 		return err
 	}
@@ -336,17 +339,28 @@ func runCmpBenches(
 	runPattern, benchTime string,
 	cpuProfile, memProfile, mutexProfile bool,
 	itersPerTest int,
+	preview bool,
 ) error {
 	var spinner ui.Spinner
-	spinner.Start(os.Stderr, "running benchmarks:")
+	spinner.Start(os.Stderr, "running benchmarks:\n")
 	defer spinner.Stop()
 	for i, t := range tests {
 		pkg := testBinToPkg(t)
 		for j := 0; j < itersPerTest; j++ {
 			pkgFrac := ui.Fraction(i+1, len(tests))
 			iterFrac := ui.Fraction(j+1, itersPerTest)
-			progress := fmt.Sprintf(" pkg=%s iter=%s %s", pkgFrac, iterFrac, pkg)
-			spinner.Update(progress)
+			var buf bytes.Buffer
+			if preview {
+				_, err := processBenchOutput(ctx, &buf, bs1, bs2, true, text, tests, nil)
+				if err != nil {
+					return err
+				}
+				_, _ = fmt.Fprintln(&buf)
+			}
+			_, _ = fmt.Fprintf(&buf, "pkg=%s iter=%s %s",
+				pkgFrac, iterFrac,
+				pkg)
+			spinner.Update(buf.String())
 
 			// Interleave test suite runs instead of using -count=itersPerTest. The
 			// idea is that this reduces the chance that we pick up external noise
@@ -409,6 +423,7 @@ func runSingleBench(
 
 func processBenchOutput(
 	ctx context.Context,
+	w io.Writer,
 	oldSuite, newSuite *benchSuite,
 	byName bool, // instead of by delta reversed
 	out outputFmt,
@@ -438,19 +453,19 @@ func processBenchOutput(
 	// Output the results.
 	switch out {
 	case text:
-		benchstat.FormatText(os.Stdout, tables)
+		benchstat.FormatText(w, tables)
 	case csv:
 		// If norange is true, suppress the range information for each data item.
 		// If norange is false, insert a "±" in the appropriate columns of the header row.
 		norange := false
-		benchstat.FormatCSV(os.Stdout, tables, norange)
+		benchstat.FormatCSV(w, tables, norange)
 	case html:
 		var buf bytes.Buffer
 		benchstat.FormatHTML(&buf, tables)
-		io.Copy(os.Stdout, &buf)
+		io.Copy(w, &buf)
 	case sheets:
 		// When outputting a Google sheet, also output as text first.
-		benchstat.FormatText(os.Stdout, tables)
+		benchstat.FormatText(w, tables)
 
 		sheetName := fmt.Sprintf("benchdiff: %s (%s -> %s)",
 			strings.Join(pkgFilter, " "), oldSuite.ref, newSuite.ref)
