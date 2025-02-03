@@ -593,7 +593,7 @@ func (bs *benchSuite) build(pkgFilter []string, postChck string, t time.Time) (e
 	}
 
 	var spinner ui.Spinner
-	spinner.Start(os.Stderr, fmt.Sprintf("building benchmark binaries for %s: %.50s [bazel=%t]", bs.ref,
+	spinner.Start(os.Stderr, fmt.Sprintf("building benchmark binaries for %s: %.50s [bazel=%t] ", bs.ref,
 		bs.subject, bs.useBazel))
 	defer spinner.Stop()
 	for i, pkg := range pkgs {

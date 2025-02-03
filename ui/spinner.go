@@ -46,7 +46,7 @@ func (s *Spinner) Start(out io.Writer, prefix string) {
 			}
 			fmt.Fprint(&s.w, prefix)
 			if progress != "" {
-				fmt.Fprintf(&s.w, " %s", progress)
+				fmt.Fprint(&s.w, progress)
 			}
 			fmt.Fprintf(&s.w, " %s\n", spinnerChars[spinnerIdx%len(spinnerChars)])
 			if err := s.w.Flush(out); err != nil {
