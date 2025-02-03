@@ -350,7 +350,7 @@ func runCmpBenches(
 			pkgFrac := ui.Fraction(i+1, len(tests))
 			iterFrac := ui.Fraction(j+1, itersPerTest)
 			var buf bytes.Buffer
-			if preview {
+			if preview && j > 0 {
 				_, err := processBenchOutput(ctx, &buf, bs1, bs2, true, text, tests, nil)
 				if err != nil {
 					return err
